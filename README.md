@@ -10,9 +10,11 @@ The program has only been tested on OpenBSD and depends on the OpenBSD pledge()
 system call to restrict what it is allowed to do.
 
 It requires a user called "_ilsd" which can be created in this way:
+```
 # useradd -d /var/ilsd -s /sbin/nologin -c "IP last seen daemon" _ilsd
 # install -d -m 0755 -o root -g wheel /var/ilsd
 # install -d -m 0775 -o root -g _ilsd /var/ilsd/db
+```
 
 The code is heavily influenced by a bunch of external resources:
 * Packet parsing: Programming with pcap, http://www.tcpdump.org/pcap.html
