@@ -1,5 +1,21 @@
-#ifndef _MLS_H_
-#define _MLS_H_
+/*
+ * Copyright (c) 2016 Patrik Lundin <patrik@sigterm.se>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
+#ifndef _ILSD_H_
+#define _ILSD_H_
 
 /* The user that ilsd drops privileges to */
 #define ILSD_USER "_ilsd"
@@ -67,4 +83,4 @@ void log_message(int, const char *, ...);
 
 void signal_handler(int);
 
-#endif /* _MLS_H_ */
+#endif /* _ILSD_H_ */
