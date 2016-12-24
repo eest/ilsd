@@ -205,34 +205,11 @@ update_ilsd_database(char *ip, char *mac, long long ts){
 
     sqlite3_stmt *update_ilsd_table_stmt;
     int sqlite3_rc;
-    int snprintf_ret;
-
-    char sqlite3_update_string[200];
-
-    /* Fill in SQL command  */
-    snprintf_ret = snprintf(
-        sqlite3_update_string,
-        sizeof(sqlite3_update_string),
-        "INSERT OR REPLACE INTO ilsd (ip, mac, ts) VALUES ('%s', '%s', %lld)",
-        ip,
-        mac,
-        ts
-    );
-    if (snprintf_ret == -1){
-        log_message(LOG_CRIT, "sqlite UPDATE statement snprintf failed: %s",
-            strerror(errno));
-        exit(1);
-    }
-    if ((int)sizeof(sqlite3_update_string) <= snprintf_ret) {
-        log_message(LOG_CRIT,
-            "SQLite UPDATE statement was truncated, exiting");
-        exit(1);
-    }
 
     /* Prepare statement */
     sqlite3_rc = sqlite3_prepare_v2(
         db,
-        sqlite3_update_string,
+        "INSERT OR REPLACE INTO ilsd (ip, mac, ts) VALUES (?, ?, ?)",
         -1,
         &update_ilsd_table_stmt,
         NULL
@@ -240,6 +217,31 @@ update_ilsd_database(char *ip, char *mac, long long ts){
     if(sqlite3_rc != SQLITE_OK){
         log_message(LOG_CRIT,
             "can't prepare ilsd update: %s", sqlite3_errmsg(db));
+        sqlite3_close(db);
+        return(1);
+    }
+
+    /* Bind values to parameters */
+    sqlite3_rc = sqlite3_bind_text(update_ilsd_table_stmt, 1, ip, -1, SQLITE_STATIC);
+    if(sqlite3_rc != SQLITE_OK){
+        log_message(LOG_CRIT,
+            "failed to bind ip parameter: %s", sqlite3_errmsg(db));
+        sqlite3_close(db);
+        return(1);
+    }
+
+    sqlite3_rc = sqlite3_bind_text(update_ilsd_table_stmt, 2, mac, -1, SQLITE_STATIC);
+    if(sqlite3_rc != SQLITE_OK){
+        log_message(LOG_CRIT,
+            "failed to bind mac parameter: %s", sqlite3_errmsg(db));
+        sqlite3_close(db);
+        return(1);
+    }
+
+    sqlite3_rc = sqlite3_bind_int64(update_ilsd_table_stmt, 3, ts);
+    if(sqlite3_rc != SQLITE_OK){
+        log_message(LOG_CRIT,
+            "failed to bind ts parameter: %s", sqlite3_errmsg(db));
         sqlite3_close(db);
         return(1);
     }
