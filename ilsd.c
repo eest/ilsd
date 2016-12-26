@@ -30,25 +30,32 @@
 
 #include "ilsd.h"
 
-/* Filled in by main() and used in process_arp_packet() */
-struct in_addr network; /* The network our interface belongs to */
-struct in_addr netmask; /* The netmask our interface uses */
+/* Filled in by main() and used in process_arp_packet(). */
+struct in_addr network; /* The network our interface belongs to. */
+struct in_addr netmask; /* The netmask our interface uses. */
 
-/* Globally reachable database handle */
+/* Globally reachable database handle. */
 sqlite3 *db;
 
-/* Globally reachable pcap session handle */
+/* Globally reachable pcap session handle. */
 pcap_t *pcap_handle;
 
-/* Global debug mode */
+/* Global debug mode. */
 int debug;
 
+/*
+ * Signal handler that breaks the pcap loop.
+ */
 void
 signal_handler(int sig)
 {
+    /* pcap_breakloop() is explicitly signal safe. */
     pcap_breakloop(pcap_handle);
 }
 
+/*
+ * Print usage and exit.
+ */
 void usage(void)
 {
     extern char *__progname;
@@ -93,13 +100,13 @@ log_message(int priority, const char *format, ...)
 }
 
 /*
- * Drop privileges to unprivileged user, done after pcap handle has been
- * opened.
+ * Perform chroot() and drop privileges to unprivileged user.
+ * Done after pcap handle has been opened.
  */
 int
 chroot_and_drop_privileges(char *user)
 {
-    struct passwd *pw;            /* Used for dropping privileges */
+    struct passwd *pw;
 
     if ((pw = getpwnam(user)) == NULL){
         log_message(LOG_CRIT,
@@ -129,7 +136,7 @@ chroot_and_drop_privileges(char *user)
 }
 
 /*
- * Open database, creating the table if necessary.
+ * Open database, creating the ilsd table if necessary.
  */
 int
 open_ilsd_database(void){
@@ -137,7 +144,7 @@ open_ilsd_database(void){
     sqlite3_stmt *create_ilsd_table_stmt;
     int sqlite3_rc;
 
-    /* Set up SQLite connection */
+    /* Set up SQLite connection. */
     sqlite3_rc = sqlite3_open("db/ilsd.db", &db);
 
     if(sqlite3_rc != SQLITE_OK){
@@ -146,7 +153,7 @@ open_ilsd_database(void){
         return(1);
     }
 
-    /* Create ilsd table if it does not exist */
+    /* Create ilsd table if it does not exist. */
     sqlite3_rc = sqlite3_prepare_v2(
         db,
         "CREATE TABLE IF NOT EXISTS "
@@ -198,7 +205,7 @@ close_ilsd_database(void){
 }
 
 /*
- * Add or update row in table
+ * Add or update row in table.
  */
 int
 update_ilsd_database(char *ip, char *mac, long long ts){
@@ -206,7 +213,7 @@ update_ilsd_database(char *ip, char *mac, long long ts){
     sqlite3_stmt *update_ilsd_table_stmt;
     int sqlite3_rc;
 
-    /* Prepare statement */
+    /* Prepare statement. */
     sqlite3_rc = sqlite3_prepare_v2(
         db,
         "INSERT OR REPLACE INTO ilsd (ip, mac, ts) VALUES (?, ?, ?)",
@@ -221,7 +228,7 @@ update_ilsd_database(char *ip, char *mac, long long ts){
         return(1);
     }
 
-    /* Bind values to parameters */
+    /* Bind values to statement parameters. */
     sqlite3_rc = sqlite3_bind_text(update_ilsd_table_stmt, 1, ip, -1, SQLITE_STATIC);
     if(sqlite3_rc != SQLITE_OK){
         log_message(LOG_CRIT,
@@ -246,7 +253,7 @@ update_ilsd_database(char *ip, char *mac, long long ts){
         return(1);
     }
 
-    /* Perform the update */
+    /* Perform the update. */
     sqlite3_rc = sqlite3_step(update_ilsd_table_stmt);
     if(sqlite3_rc != SQLITE_DONE){
         log_message(LOG_CRIT,
@@ -255,7 +262,7 @@ update_ilsd_database(char *ip, char *mac, long long ts){
         return(1);
     }
 
-    /* Cleanup */
+    /* Cleanup. */
     sqlite3_rc = sqlite3_finalize(update_ilsd_table_stmt);
     if(sqlite3_rc != SQLITE_OK){
         log_message(LOG_CRIT,
@@ -268,29 +275,27 @@ update_ilsd_database(char *ip, char *mac, long long ts){
 }
 
 /*
- * Parse and verify a recived ARP packet.
+ * Callback to parse and verify a received ARP packet.
  * Information from an ARP request is written to the database.
  */
 void
-process_arp_packet(
-    u_char *args,
-    const struct pcap_pkthdr *header,
+process_arp_packet(u_char *args, const struct pcap_pkthdr *header,
     const u_char *packet)
 {
-    /* The sender IP of a recieved ARP request */
+    /* The sender IP of a received ARP request. */
     struct in_addr sender_ip;
-    /* The sender IP network of a recieved ARP request */
+    /* The sender IP network of a received ARP request. */
     struct in_addr sender_ip_network;
 
-    /* used to verify return value of snprintf */
+    /* used to verify return value of snprintf. */
     int snprintf_ret;
 
-    /* sender MAC address such as "aa:bb:cc:dd:ee:ff" plus null */
+    /* sender MAC address such as "aa:bb:cc:dd:ee:ff" plus null. */
     char sender_mac_string[18];
-    /* sender ip address such as "192.168.100.100" plus null */
+    /* sender ip address such as "192.168.100.100" plus null. */
     char sender_ip_string[16];
 
-    /* Make sure we are not missing packet contents */
+    /* Make sure we are not missing packet contents. */
     if (CAPTURE_SIZE < header->len){
         log_message(
             LOG_CRIT,
@@ -301,14 +306,14 @@ process_arp_packet(
         exit(1);
     }
 
-    /* Make it possible to extract ethernet data from recieved packet */
+    /* Make it possible to extract ethernet data from received packet. */
     ethernet = (struct ethernet_header*)(packet);
 
-    /* Make sure we are dealing with an ARP packet */
+    /* Make sure we are dealing with an ARP packet. */
     if (ntohs(ethernet->ether_type) != ETHERTYPE_ARP){
         log_message(
             LOG_CRIT,
-            "EtherType of recived packet (0x%04x) does not match "
+            "EtherType of received packet (0x%04x) does not match "
             "expected ARP EtherType (0x%04x)",
             ntohs(ethernet->ether_type),
             ETHERTYPE_ARP
@@ -316,13 +321,13 @@ process_arp_packet(
         exit(1);
     }
 
-    /* Make it possible to extract ARP data from recieved packet */
+    /* Make it possible to extract ARP data from received packet. */
     arp = (struct arp_packet*)(packet + SIZE_ETHERNET);
 
-    /* We only care about ARP requests */
+    /* We only care about ARP requests. */
     if (ntohs(arp->opcode) == ARPOP_REQUEST){
 
-        /* Store MAC address as a string for easy access */
+        /* Store MAC address as a string for easy access. */
         snprintf_ret = snprintf(
             sender_mac_string,
             sizeof(sender_mac_string),
@@ -343,7 +348,7 @@ process_arp_packet(
             exit(1);
         }
 
-        /* Store IP address as a string for easy access */
+        /* Store IP address as a string for easy access. */
         snprintf_ret = snprintf(
             sender_ip_string,
             sizeof(sender_ip_string),
@@ -369,7 +374,7 @@ process_arp_packet(
         if (netmask.s_addr) {
             /*
              * Convert sender_ip_string to in_addr struct so we can compare
-             * addresses
+             * addresses.
              */
             if (! inet_aton(sender_ip_string, &sender_ip)){
                 log_message(LOG_CRIT, "unable to parse sender_ip_string");
@@ -385,7 +390,7 @@ process_arp_packet(
             /*
              * The network number of the sender should match our own network
              * number otherwise something strange is going on (misconfigured
-             * machine trying to access the network?)
+             * machine trying to access the network?).
              */
             if (sender_ip_network.s_addr != network.s_addr){
                 log_message(
@@ -404,7 +409,7 @@ process_arp_packet(
             sender_ip_string,
             sender_mac_string);
 
-        /* Write information to database */
+        /* Write information to database. */
         update_ilsd_database(
             sender_ip_string,
             sender_mac_string,
@@ -417,12 +422,12 @@ int
 main(int argc, char *argv[])
 {
 
-    char *interface;               /* The interface to listen on */
-    char errbuf[PCAP_ERRBUF_SIZE]; /* Error string */
-    struct bpf_program fp;         /* The compiled filter */
-    char filter_exp[] = "arp";     /* The filter expression */
-    bpf_u_int32 mask;              /* Our netmask */
-    bpf_u_int32 net;               /* Our IP */
+    char *interface;               /* The interface to listen on. */
+    char errbuf[PCAP_ERRBUF_SIZE]; /* Error string. */
+    struct bpf_program fp;         /* The compiled filter. */
+    char filter_exp[] = "arp";     /* The filter expression. */
+    bpf_u_int32 mask;              /* Our netmask. */
+    bpf_u_int32 net;               /* Our IP. */
 
     int loop_ret;
     int ch, rc;
@@ -453,14 +458,15 @@ main(int argc, char *argv[])
         exit(1);
     }
 
+    /* Setup syslog. */
     init_syslog();
 
-    /* Daemonize */
+    /* Daemonize. */
     if (!debug) {
         daemon(0, 0);
     }
 
-    /* Define the interface */
+    /* Define the interface. */
     if (! interface){
         interface = pcap_lookupdev(errbuf);
         if (interface == NULL) {
@@ -471,7 +477,7 @@ main(int argc, char *argv[])
             "no interface specified, defaulting to %s",
             interface);
     }
-    /* Find the properties for the interface */
+    /* Find the properties for the interface. */
     if (pcap_lookupnet(interface, &net, &mask, errbuf) == -1) {
         log_message(LOG_WARNING, "Couldn't get netmask for interface %s: %s",
             interface, errbuf);
@@ -483,7 +489,7 @@ main(int argc, char *argv[])
 
     /*
      * Open the session, no need for promiscuous mode since we are only looking
-     * for broadcast arp requests
+     * for broadcast arp requests.
      */
     pcap_handle = pcap_open_live(interface, CAPTURE_SIZE, 0, 1000, errbuf);
     if (pcap_handle == NULL) {
@@ -492,10 +498,10 @@ main(int argc, char *argv[])
         return(2);
     }
 
-    /* Now that we have an open handle we can drop privileges */
+    /* Now that we have an open handle we can drop privileges. */
     chroot_and_drop_privileges(ILSD_USER);
 
-    /* Compile and apply the filter */
+    /* Compile and apply the filter. */
     if (pcap_compile(pcap_handle, &fp, filter_exp, 0, net) == -1) {
         log_message(LOG_CRIT, "Couldn't parse filter %s: %s",
             filter_exp, pcap_geterr(pcap_handle));
@@ -507,9 +513,8 @@ main(int argc, char *argv[])
         return(2);
     }
 
-
+    /* Open the database. */
     rc = open_ilsd_database();
-
     if (rc) {
         log_message(LOG_CRIT, "unable to open database, exiting");
         exit(1);
@@ -520,7 +525,7 @@ main(int argc, char *argv[])
     signal(SIGTERM, signal_handler);
 
     /*
-     * Limit what the program is allowed to do. The wpath/cpath permissions are
+     * Limit what the program is allowed to do. The cpath permission is
      * required for the sqlite journal file.
      */
     if (pledge("stdio flock rpath wpath cpath", NULL) == -1){
@@ -528,7 +533,7 @@ main(int argc, char *argv[])
         exit(1);
     }
 
-    /* Loop until signal is recieved */
+    /* Loop until signal is received. */
     loop_ret = pcap_loop(pcap_handle, -1, process_arp_packet, NULL);
 
     if (loop_ret == -2) {
@@ -538,9 +543,10 @@ main(int argc, char *argv[])
             pcap_geterr(pcap_handle), loop_ret);
     }
 
-    /* Close the session */
+    /* Close the session. */
     pcap_close(pcap_handle);
 
+    /* Close the database. */
     rc = close_ilsd_database();
     return(0);
 }
